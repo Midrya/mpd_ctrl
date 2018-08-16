@@ -25,29 +25,26 @@ main(int argc, char *argv[])
 	}
 
 	enum OPTION option;
-	int opt;
-	while((opt = getopt(argc, argv, "spnth")) != -1) {
-		switch (opt) {
-		case 's':
-			option = STATUS;
-			break;
-		case 'p':
-			option = PREVIOUS;
-			break;
-		case 'n':
-			option = NEXT;
-			break;
-		case 't':
-			option = TOGGLE;
-			break;
-		case 'h':
-			usage(stdout);
-			exit(EXIT_SUCCESS);
-			break;
-		default: /* '?' */
-			usage(stderr);
-			exit(EXIT_FAILURE);
-		}
+	switch (getopt(argc, argv, "spnth")) {
+	case 's':
+		option = STATUS;
+		break;
+	case 'p':
+		option = PREVIOUS;
+		break;
+	case 'n':
+		option = NEXT;
+		break;
+	case 't':
+		option = TOGGLE;
+		break;
+	case 'h':
+		usage(stdout);
+		exit(EXIT_SUCCESS);
+		break;
+	default: /* '?' */
+		usage(stderr);
+		exit(EXIT_FAILURE);
 	}
 
 	struct mpd_connection *conn = mpd_connection_new(NULL, 0, 0);
