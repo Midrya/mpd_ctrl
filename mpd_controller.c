@@ -9,15 +9,16 @@
 enum OPTION { STATUS, PREVIOUS, NEXT, TOGGLE };
 
 void usage(FILE*);
-int  song_status(struct mpd_connection*);
-int  song_previous(struct mpd_connection*);
-int  song_next(struct mpd_connection*);
-int  song_toggle(struct mpd_connection*);
+int  song_status();
+int  song_previous();
+int  song_next();
+int  song_toggle();
 void cook_time(unsigned, unsigned*);
 
 int
 main(int argc, char *argv[])
 {
+	struct mpd_connection *conn = mpd_connection_new(NULL, 0, 0);
 	if (argc != 2) {
 		fputs("Must be called with exactly 1 argument\n", stderr);
 		usage(stderr);
@@ -27,16 +28,16 @@ main(int argc, char *argv[])
 	enum OPTION option;
 	switch (getopt(argc, argv, "spnth")) {
 	case 's':
-		option = STATUS;
+		exit(song_status());
 		break;
 	case 'p':
-		option = PREVIOUS;
+		exit(song_previous());
 		break;
 	case 'n':
-		option = NEXT;
+		exit(song_next());
 		break;
 	case 't':
-		option = TOGGLE;
+		exit(song_toggle());
 		break;
 	case 'h':
 		usage(stdout);
@@ -47,31 +48,7 @@ main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	struct mpd_connection *conn = mpd_connection_new(NULL, 0, 0);
-	int exit_code;
-
-	switch (option) {
-	case STATUS:
-		exit_code = song_status(conn);
-		mpd_connection_free(conn);
-		exit(exit_code);
-		break;
-	case PREVIOUS:
-		exit_code = song_previous(conn);
-		mpd_connection_free(conn);
-		exit(exit_code);
-		break;
-	case NEXT:
-		exit_code = song_next(conn);
-		mpd_connection_free(conn);
-		exit(exit_code);
-		break;
-	case TOGGLE:
-		exit_code = song_toggle(conn);
-		mpd_connection_free(conn);
-		exit(exit_code);
-		break;
-	}
+		int exit_code;
 	return 0;
 }
 
@@ -87,17 +64,16 @@ usage(FILE *stream)
 }
 
 int
-song_status(struct mpd_connection *conn)
+song_status()
 {
 	unsigned time, duration;
-	struct mpd_status *status;
-	struct mpd_song *song;
-	enum mpd_state state;
 	unsigned duration_cooked[3];
 	unsigned time_cooked[3];
+	struct mpd_connection *conn = mpd_connection_new(NULL, 0, 0);
+	struct mpd_status *status = mpd_run_status(conn);
+	struct mpd_song *song = mpd_run_current_song(conn);
+	enum mpd_state state;
 
-	status = mpd_run_status(conn);
-	song = mpd_run_current_song(conn);
 	if (status == NULL || song == NULL) {
 		return EXIT_FAILURE;
 	}
@@ -123,6 +99,7 @@ song_status(struct mpd_connection *conn)
 	}
 	mpd_song_free(song);
 	mpd_status_free(status);
+	mpd_connection_free(conn);
 
 	return EXIT_SUCCESS;
 }
@@ -136,8 +113,9 @@ cook_time(unsigned time, unsigned *cooked)
 }
 
 int
-song_previous(struct mpd_connection *conn)
+song_previous()
 {
+	struct mpd_connection *conn = mpd_connection_new(NULL, 0, 0);
 	struct mpd_status *status = mpd_run_status(conn);
 	enum mpd_state state = mpd_status_get_state(status);
 	unsigned time = mpd_status_get_elapsed_time(status);
@@ -159,13 +137,15 @@ song_previous(struct mpd_connection *conn)
 	}
 
 	mpd_status_free(status);
+	mpd_connection_free(conn);
 
 	return EXIT_SUCCESS;
 }
 
 int
-song_next(struct mpd_connection *conn)
+song_next()
 {
+	struct mpd_connection *conn = mpd_connection_new(NULL, 0, 0);
 	struct mpd_status *status = mpd_run_status(conn);
 	enum mpd_state state = mpd_status_get_state(status);
 
@@ -176,16 +156,22 @@ song_next(struct mpd_connection *conn)
 	if (state != MPD_STATE_PLAY) {
 		mpd_run_next(conn);
 		mpd_run_toggle_pause(conn);
-	}
-	else {
+	} else {
 		mpd_run_next(conn);
 	}
+
+	mpd_connection_free(conn);
+
 	return EXIT_SUCCESS;
 }
 
 int
-song_toggle(struct mpd_connection *conn)
+song_toggle()
 {
+	struct mpd_connection *conn = mpd_connection_new(NULL, 0, 0);
 	mpd_run_toggle_pause(conn);
+
+	mpd_connection_free(conn);
+
 	return EXIT_SUCCESS;
 }
