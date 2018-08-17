@@ -89,23 +89,29 @@ usage(FILE *stream)
 int
 song_status(struct mpd_connection *conn)
 {
-	struct mpd_status *status = mpd_run_status(conn);
-	struct mpd_song *song = mpd_run_current_song(conn);
+	unsigned time, duration;
+	struct mpd_status *status;
+	struct mpd_song *song;
+	enum mpd_state state;
+	unsigned duration_cooked[3];
+	unsigned time_cooked[3];
+
+	status = mpd_run_status(conn);
+	song = mpd_run_current_song(conn);
 	if (status == NULL || song == NULL) {
 		return EXIT_FAILURE;
 	}
-	unsigned time = mpd_status_get_elapsed_time(status);
-	unsigned duration = mpd_song_get_duration(song);
-	enum mpd_state state = mpd_status_get_state(status);
-	const char* title = mpd_song_get_tag(song, MPD_TAG_TITLE, 0);
-	const char* artist = mpd_song_get_tag(song, MPD_TAG_ARTIST, 0);
 
-	unsigned duration_cooked[3];
-	unsigned time_cooked[3];
+	time = mpd_status_get_elapsed_time(status);
+	duration = mpd_song_get_duration(song);
+	state = mpd_status_get_state(status);
+
 	cook_time(time, time_cooked);
 	cook_time(duration, duration_cooked);
 
-	printf("%s - %s", artist, title);
+	printf("%s - %s",
+	    mpd_song_get_tag(song, MPD_TAG_ARTIST, 0),
+	    mpd_song_get_tag(song, MPD_TAG_TITLE, 0));
 	if (duration_cooked[0] > 0) {
 		printf(" (%u:%02u:%02u/%u:%02u:%02u)",
 		    time_cooked[0], time_cooked[1], time_cooked[2],
