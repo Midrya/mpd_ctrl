@@ -9,68 +9,75 @@
 enum OPTION { STATUS, PREVIOUS, NEXT, TOGGLE };
 
 void usage(FILE*);
-int  song_status();
-int  song_previous();
-int  song_next();
-int  song_toggle();
+int  song_status(struct mpd_connection*, struct mpd_status*);
+int  song_previous(struct mpd_connection*, struct mpd_status*);
+int  song_next(struct mpd_connection*, struct mpd_status*);
+int  song_toggle(struct mpd_connection*);
 void cook_time(unsigned, unsigned*);
 
 int
 main(int argc, char *argv[])
 {
-	struct mpd_connection *conn = mpd_connection_new(NULL, 0, 0);
+	int exit_code = 0;
+	struct mpd_connection *conn;
+	struct mpd_status *status;
 	if (argc != 2) {
 		fputs("Must be called with exactly 1 argument\n", stderr);
 		usage(stderr);
 		exit(EXIT_FAILURE);
 	}
 
+	conn = mpd_connection_new(NULL, 0, 0);
+	status = mpd_run_status(conn);
+
 	enum OPTION option;
 	switch (getopt(argc, argv, "spnth")) {
 	case 's':
-		exit(song_status());
+		exit_code = song_status(conn, status);
 		break;
 	case 'p':
-		exit(song_previous());
+		exit_code = song_previous(conn, status);
 		break;
 	case 'n':
-		exit(song_next());
+		exit_code = song_next(conn, status);
 		break;
 	case 't':
-		exit(song_toggle());
+		exit_code = song_toggle(conn);
 		break;
 	case 'h':
 		usage(stdout);
-		exit(EXIT_SUCCESS);
+		exit_code = EXIT_SUCCESS;
 		break;
 	default: /* '?' */
 		usage(stderr);
-		exit(EXIT_FAILURE);
+		exit_code = EXIT_FAILURE;
+		break;
 	}
 
-		int exit_code;
-	return 0;
+	mpd_status_free(status);
+	mpd_connection_free(conn);
+
+	return exit_code;
 }
 
 void
 usage(FILE *stream)
 {
-	fputs("\t-s : output song status \
-        \n\t-p : go to previous song, if paused or elapsed time < 3, or restart song \
-        \n\t-n : go to next song \
-        \n\t-t : toggle pause/play state of song \
-        \n\t-h : output help message\n",
+	fputs("\t-s : output song status"
+	    "\n\t-p : go to previous song, if paused or elapsed time < 3,"
+	    "or restart song"
+	    "\n\t-n : go to next song"
+	    "\n\t-t : toggle pause/play state of song"
+	    "\n\t-h : output help message\n",
 	    stream);
 }
 
 int
-song_status()
+song_status(struct mpd_connection *conn, struct mpd_status *status)
 {
 	unsigned time, duration;
 	unsigned duration_cooked[3];
 	unsigned time_cooked[3];
-	struct mpd_connection *conn = mpd_connection_new(NULL, 0, 0);
-	struct mpd_status *status = mpd_run_status(conn);
 	struct mpd_song *song = mpd_run_current_song(conn);
 	enum mpd_state state;
 
@@ -98,8 +105,6 @@ song_status()
 		    duration_cooked[1], duration_cooked[2]);
 	}
 	mpd_song_free(song);
-	mpd_status_free(status);
-	mpd_connection_free(conn);
 
 	return EXIT_SUCCESS;
 }
@@ -113,10 +118,8 @@ cook_time(unsigned time, unsigned *cooked)
 }
 
 int
-song_previous()
+song_previous(struct mpd_connection *conn, struct mpd_status *status)
 {
-	struct mpd_connection *conn = mpd_connection_new(NULL, 0, 0);
-	struct mpd_status *status = mpd_run_status(conn);
 	enum mpd_state state = mpd_status_get_state(status);
 	unsigned time = mpd_status_get_elapsed_time(status);
 
@@ -126,27 +129,20 @@ song_previous()
 
 	if (state == MPD_STATE_PLAY && time <= 3) {
 		mpd_run_previous(conn);
-	}
-	else if (state != MPD_STATE_PLAY) {
+	} else if (state != MPD_STATE_PLAY) {
 		mpd_run_previous(conn);
 		mpd_run_toggle_pause(conn);
-	}
-	else {
+	} else {
 		mpd_run_stop(conn);
 		mpd_run_play(conn);
 	}
-
-	mpd_status_free(status);
-	mpd_connection_free(conn);
 
 	return EXIT_SUCCESS;
 }
 
 int
-song_next()
+song_next(struct mpd_connection *conn, struct mpd_status *status)
 {
-	struct mpd_connection *conn = mpd_connection_new(NULL, 0, 0);
-	struct mpd_status *status = mpd_run_status(conn);
 	enum mpd_state state = mpd_status_get_state(status);
 
 	if (state == MPD_STATE_UNKNOWN) {
@@ -160,18 +156,13 @@ song_next()
 		mpd_run_next(conn);
 	}
 
-	mpd_connection_free(conn);
-
 	return EXIT_SUCCESS;
 }
 
 int
-song_toggle()
+song_toggle(struct mpd_connection *conn)
 {
-	struct mpd_connection *conn = mpd_connection_new(NULL, 0, 0);
 	mpd_run_toggle_pause(conn);
-
-	mpd_connection_free(conn);
 
 	return EXIT_SUCCESS;
 }
