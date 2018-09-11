@@ -6,11 +6,9 @@
 #define HOUR 3600
 #define MINUTE 60
 
-enum OPTION { STATUS, PREVIOUS, NEXT, TOGGLE };
-
 void usage(FILE*);
 int  song_status(struct mpd_connection*, struct mpd_status*);
-int  song_previous(struct mpd_connection*, struct mpd_status*);
+int  song_previous(struct mpd_connection*, struct mpd_status*, int);
 int  song_next(struct mpd_connection*, struct mpd_status*);
 int  song_toggle(struct mpd_connection*);
 void cook_time(unsigned, unsigned*);
@@ -30,13 +28,17 @@ main(int argc, char *argv[])
 	conn = mpd_connection_new(NULL, 0, 0);
 	status = mpd_run_status(conn);
 
-	enum OPTION option;
-	switch (getopt(argc, argv, "spnth")) {
+	switch (getopt(argc, argv, "sp::nth")) {
 	case 's':
 		exit_code = song_status(conn, status);
 		break;
 	case 'p':
-		exit_code = song_previous(conn, status);
+		if (optarg == 0) {
+			exit_code = song_previous(conn, status, 3);
+		}
+		else {
+			exit_code = song_previous(conn, status, atoi(optarg));
+		}
 		break;
 	case 'n':
 		exit_code = song_next(conn, status);
@@ -63,13 +65,13 @@ main(int argc, char *argv[])
 void
 usage(FILE *stream)
 {
-	fputs("\t-s : output song status"
-	    "\n\t-p : go to previous song, if paused or elapsed time < 3,"
-	    "or restart song"
-	    "\n\t-n : go to next song"
-	    "\n\t-t : toggle pause/play state of song"
-	    "\n\t-h : output help message\n",
-	    stream);
+	char *input = "    -s : output song status"
+	    "\n    -p[num] : go to previous song, if paused or elapsed time < "
+	    "num seconds, or restart song. num defaults to 3."
+	    "\n    -n : go to next song"
+	    "\n    -t : toggle pause/play state of song"
+	    "\n    -h : output help message\n\0";
+	fputs(input, stream);
 }
 
 int
@@ -118,7 +120,7 @@ cook_time(unsigned time, unsigned *cooked)
 }
 
 int
-song_previous(struct mpd_connection *conn, struct mpd_status *status)
+song_previous(struct mpd_connection *conn, struct mpd_status *status, int buffer)
 {
 	enum mpd_state state = mpd_status_get_state(status);
 	unsigned time = mpd_status_get_elapsed_time(status);
@@ -127,7 +129,7 @@ song_previous(struct mpd_connection *conn, struct mpd_status *status)
 		return EXIT_FAILURE;
 	}
 
-	if (state == MPD_STATE_PLAY && time <= 3) {
+	if (state == MPD_STATE_PLAY && (time <= buffer || buffer == 0)) {
 		mpd_run_previous(conn);
 	} else if (state != MPD_STATE_PLAY) {
 		mpd_run_previous(conn);
@@ -163,6 +165,5 @@ int
 song_toggle(struct mpd_connection *conn)
 {
 	mpd_run_toggle_pause(conn);
-
 	return EXIT_SUCCESS;
 }
